@@ -92,27 +92,30 @@ export function createXaiOAuthWebSearchTokenSource(session: XaiOAuthSession): Xa
   return {
     available: () => existsSync(session.store.filename),
     async resolve(signal?: AbortSignal): Promise<string | undefined> {
+      signal?.throwIfAborted()
       const credential = await session.store.read(XAI_PI_PROVIDER)
+      signal?.throwIfAborted()
       if (credential?.type !== 'oauth') return undefined
-      const auth = await session.models.getAuth(
-        XAI_PI_PROVIDER,
-        signal === undefined ? undefined : { signal },
-      )
+      const auth = await session.models.getAuth(XAI_PI_PROVIDER)
+      signal?.throwIfAborted()
       if (auth?.source !== 'OAuth') return undefined
       const accessToken = auth.auth.apiKey
       return accessToken === undefined || accessToken.length === 0 ? undefined : accessToken
     },
     async refresh(rejectedAccessToken: string, signal?: AbortSignal): Promise<string | undefined> {
+      signal?.throwIfAborted()
       const oauth = session.models.getProvider(XAI_PI_PROVIDER)?.auth.oauth
       if (oauth === undefined) return undefined
       const refreshSignal = signal ?? new AbortController().signal
       const credential = await session.store.modify(XAI_PI_PROVIDER, async current => {
+        refreshSignal.throwIfAborted()
         if (current?.type !== 'oauth') return undefined
         // Another process may already have refreshed while this request was in flight.
         // Returning undefined leaves that newer credential untouched; modify() returns it.
         if (current.access !== rejectedAccessToken) return undefined
         return oauth.refresh(current, refreshSignal)
       })
+      refreshSignal.throwIfAborted()
       if (credential?.type !== 'oauth') return undefined
       return credential.access.length === 0 ? undefined : credential.access
     },
