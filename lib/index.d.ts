@@ -1,6 +1,7 @@
 import z from "@deepseek-ai/schemastery";
 import { PiAiAdapter } from "@deepseek-ai/dsh-llm-pi-ai";
 import { Api, AuthInteraction, Credential, CredentialInfo, CredentialStore, Model, MutableModels, OAuthCredential, Provider } from "@earendil-works/pi-ai";
+import { WebError, WebSearchProvider, WebSearchRequest, WebSearchResult } from "@deepseek-ai/dsh-web";
 import { Context } from "@deepseek-ai/cordis";
 import { AttachmentStore } from "@deepseek-ai/dsh-attachment";
 //#region src/catalog.d.ts
@@ -61,6 +62,38 @@ declare class XaiOAuthSession {
   setSelectedModels(ids: readonly string[]): Promise<void>;
   logout(): Promise<void>;
   private writeCache;
+}
+//#endregion
+//#region src/web-search.d.ts
+declare const XAI_WEB_SEARCH_PROVIDER_ID = "xai-oauth";
+declare const DEFAULT_XAI_WEB_SEARCH_MODEL = "grok-build-0.1";
+declare const XAI_RESPONSES_URL = "https://api.x.ai/v1/responses";
+interface XaiOAuthTokenSource {
+  /** Cheap local availability check. Must not refresh or make network calls. */
+  available(): boolean;
+  /** Resolve a current OAuth bearer. Implementations may refresh an expired token under their existing lock. */
+  resolve(signal?: AbortSignal): Promise<string | undefined>;
+  /** Force-refresh after a server-side 401. Must stay OAuth-only and serialize refresh-token rotation. */
+  refresh?(rejectedAccessToken: string, signal?: AbortSignal): Promise<string | undefined>;
+}
+interface XaiOAuthWebSearchProviderOptions {
+  model?: string;
+  fetch?: typeof fetch;
+}
+interface XaiResponsesBody extends Record<string, unknown> {}
+/** Map an xAI Responses API envelope into DSH's native search result shape. */
+declare function mapXaiWebSearchResponse(body: XaiResponsesBody): WebSearchResult;
+declare class XaiOAuthWebSearchError extends WebError {}
+/** DSH-native search provider using only a SuperGrok/X OAuth bearer. */
+declare class XaiOAuthWebSearchProvider implements WebSearchProvider {
+  private readonly tokens;
+  readonly id = "xai-oauth";
+  private readonly model;
+  private readonly fetchImpl;
+  constructor(tokens: XaiOAuthTokenSource, options?: XaiOAuthWebSearchProviderOptions);
+  available(): boolean;
+  private request;
+  search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult>;
 }
 //#endregion
 //#region src/adapter.d.ts
@@ -162,13 +195,14 @@ declare function safeMessage(error: unknown): string;
 declare const name = "llm-xai-oauth";
 /** LLM registry required before the subscription route can register. */
 declare const inject: string[];
-/** Reserved for later knobs; the first release has no tunable fields. */
-interface Config {}
+interface Config {
+  /** Model used for server-side xAI Web Search. Defaults to the OAuth-friendly Grok Build model. */
+  webSearchModel?: string;
+}
 declare const Config: z<Config>;
-/**
- * Register the `xai-oauth` LLM route with a provider-native OAuth store.
- * @param ctx - plugin context carrying the LLM registry plus optional web server.
- */
-declare function apply(ctx: Context, _config: Config): void;
+/** Build a token source that is OAuth-only by construction, including forced refresh after a 401. */
+declare function createXaiOAuthWebSearchTokenSource(session: XaiOAuthSession): XaiOAuthTokenSource;
+/** Register the xai-oauth LLM route and an OAuth-only Grok-backed WebSearchProvider. */
+declare function apply(ctx: Context, config: Config): void;
 //#endregion
-export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };
+export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, DEFAULT_XAI_WEB_SEARCH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, XAI_RESPONSES_URL, XAI_WEB_SEARCH_PROVIDER_ID, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthTokenSource, type XaiOAuthWebAuthStatus, XaiOAuthWebSearchError, XaiOAuthWebSearchProvider, type XaiOAuthWebSearchProviderOptions, apply, createXaiOAuthAdapter, createXaiOAuthWebSearchTokenSource, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, mapXaiWebSearchResponse, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };
