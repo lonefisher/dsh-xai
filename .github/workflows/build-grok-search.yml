@@ -1,0 +1,44 @@
+name: Build Grok OAuth search
+
+on:
+  push:
+    branches:
+      - feature/grok-oauth-web-search
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-and-refresh-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies and refresh lockfile
+        run: npm install
+      - name: Typecheck and test
+        run: npm run typecheck && npm test
+      - name: Build committed distribution
+        run: npm run build
+      - name: Commit generated lockfile and lib
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json lib
+          if git diff --cached --quiet; then
+            echo "Generated artifacts already up to date."
+            exit 0
+          fi
+          git commit -m "build: refresh generated artifacts [skip ci]"
+          git push

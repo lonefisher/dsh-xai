@@ -6,6 +6,13 @@
     provider: xai-oauth
     model: grok-4.5
 
+# Route DSH's existing native web_search tool through the OAuth-only Grok
+# provider registered by this plugin. The base DeepSeek provider may remain
+# registered, but it is never selected while this bundle override is active.
+- id: web
+  config:
+    searchProvider: xai-oauth
+
 - insert:
     - id: llm-xai-oauth
       name: dsh-xai
