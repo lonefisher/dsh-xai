@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feature/grok-oauth-web-search
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -27,6 +30,7 @@ jobs:
       - name: Build committed distribution
         run: npm run build
       - name: Commit generated lockfile and lib
+        if: github.event_name == 'push'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
