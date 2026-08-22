@@ -53,7 +53,7 @@ describe('XaiOAuthCredentialStore', () => {
     await writeFile(store.filename, `${JSON.stringify({
       version: 99,
       credential: { type: 'oauth', access: 'a', refresh: 'r', expires: 1 },
-    })}\n`)
+    })}\n`, { mode: 0o600 })
     await expect(store.read(XAI_PI_PROVIDER)).rejects.toThrow(/unsupported auth format version/)
   })
 
@@ -62,7 +62,7 @@ describe('XaiOAuthCredentialStore', () => {
     await writeFile(store.filename, `${JSON.stringify({
       version: 1,
       credential: { type: 'oauth', access: 'a', refresh: 'r', expires: 1, leak: 'nope' },
-    })}\n`)
+    })}\n`, { mode: 0o600 })
     await expect(store.read(XAI_PI_PROVIDER)).rejects.toThrow(/unknown field/)
   })
 
